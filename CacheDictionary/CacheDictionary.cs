@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using CacheDictionary;
 
 namespace Cache
 {
@@ -17,9 +18,9 @@ namespace Cache
     public class CacheDictionary<TKey, TValue> : IDictionary<TKey, TValue>
     {
         #region private members
-        private readonly Dictionary<TKey, Node<KeyValuePair<TKey, TValue>>> _dictionary = new Dictionary<TKey, Node<KeyValuePair <TKey, TValue>>>();
+        private readonly Dictionary<TKey, Node<CacheData<TKey, TValue>>> _dictionary = new Dictionary<TKey, Node<CacheData<TKey, TValue>>>();
         private readonly int _capacity = 32;
-        private readonly DoublyLinkedList<KeyValuePair<TKey, TValue>> _list = new DoublyLinkedList<KeyValuePair<TKey, TValue>>();
+        private readonly DoublyLinkedList<CacheData<TKey, TValue>> _list = new DoublyLinkedList<CacheData<TKey, TValue>>();
 
         private void AddInternal(TKey key, TValue value)
         {
@@ -29,7 +30,7 @@ namespace Cache
                 _list.RemoveLast();
             }
 
-            var node = new Node<KeyValuePair<TKey, TValue>>(new KeyValuePair<TKey, TValue>(key, value));
+            var node = new Node<CacheData<TKey, TValue>>(new CacheData<TKey, TValue>(key, value));
 
             _dictionary.Add(key, node);
             _list.AddFront(node);
@@ -40,7 +41,7 @@ namespace Cache
         #region public members
         public CacheDictionary(int capacity)
         {
-            if (capacity < 0) throw new ArgumentOutOfRangeException("capacity","cannot be neagtive");
+            if (capacity < 0) throw new ArgumentOutOfRangeException("capacity","cannot be negative");
             _capacity = capacity;
         }
 
@@ -56,7 +57,7 @@ namespace Cache
 
         public bool Remove(TKey key)
         {
-            Node<KeyValuePair<TKey, TValue>> node = null;
+            Node<CacheData<TKey, TValue>> node = null;
             if (_dictionary.TryGetValue(key, out node))
             {
                 _list.Remove(node);
@@ -72,7 +73,7 @@ namespace Cache
 
         public bool TryGetValue(TKey key, out TValue value)
         {
-            Node<KeyValuePair<TKey, TValue>> node = null;
+            Node<CacheData<TKey, TValue>> node = null;
             if (_dictionary.TryGetValue(key, out node))
             {
                 _list.MoveToFront(node);
@@ -93,10 +94,10 @@ namespace Cache
             }
             set
             {
-                Node<KeyValuePair<TKey, TValue>> node = null;
+                Node<CacheData<TKey, TValue>> node = null;
                 if (_dictionary.TryGetValue(key, out node))
                 {
-                    node.Data = new KeyValuePair<TKey, TValue>(key, value);
+                    node.Data.Value = value;
                     _list.MoveToFront(node);
                 }
                 else
@@ -121,8 +122,9 @@ namespace Cache
         #region IEnumerator<KeyValuePair<TKey, TValue>> implementation
         public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
         {
-            return _list.GetEnumerator();
+            return _list.Select(item => new KeyValuePair<TKey, TValue>(item.Key,item.Value)).GetEnumerator();
         }
+
         #endregion
 
         #region IEnumerable impementation
@@ -140,10 +142,10 @@ namespace Cache
 
         public bool Remove(KeyValuePair<TKey, TValue> item)
         {
-            Node<KeyValuePair<TKey, TValue>> node = null;
+            Node<CacheData<TKey, TValue>> node = null;
             if (_dictionary.TryGetValue(item.Key, out node))
             {
-                if (node.Data.Equals(item))
+                if (node.Data.Equals(new CacheData<TKey,TValue>(item.Key,item.Value)))
                 {
                     _list.Remove(node);
                     return _dictionary.Remove(item.Key);
@@ -160,7 +162,7 @@ namespace Cache
 
         public bool Contains(KeyValuePair<TKey, TValue> item)
         {
-            return _dictionary.Contains(new KeyValuePair<TKey, Node<KeyValuePair <TKey, TValue>>>(item.Key, new Node<KeyValuePair <TKey,TValue>>(item)));
+            return _dictionary.Contains(new KeyValuePair<TKey, Node<CacheData<TKey, TValue>>>(item.Key, new Node<CacheData<TKey, TValue>>(new CacheData<TKey, TValue>(item.Key,item.Value))));
         }
 
         public void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
