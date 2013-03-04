@@ -11,8 +11,12 @@ namespace Cache
         LRU
     }
     /// <summary>
-    /// Dictionary with capability to retain n most recently used items in it. Where n is the capacity passed as argument to constructor.
+    /// C# Dictionary with capability to retain only n items in it, where n is the capacity passed as argument to constructor. 
+    /// Which n items to retain is decided based on CachePurgeStatergy - MRU or LRU.
+    /// Least Recently Used (LRU): discards the least recently used items first.
+    /// Most Recently Used (MRU): discards, in contrast to LRU, the most recently used items first. 
     /// Item that get affected by following operations are marked Most Recently used 
+    /// 
     /// 1. addition of new KVP
     /// 2. Accessing a value
     /// 3. Updating a value
@@ -43,6 +47,11 @@ namespace Cache
         #endregion
 
         #region public members
+
+        /// <summary>
+        /// Creates a CacheDictionary with LRU Purge Statergy.
+        /// </summary>
+        /// <param name="capacity"></param>
         public CacheDictionary(int capacity)
         {
             if (capacity < 0) throw new ArgumentOutOfRangeException("capacity","cannot be negative");
