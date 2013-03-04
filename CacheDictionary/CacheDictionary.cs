@@ -2,10 +2,14 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using CacheDictionary;
 
 namespace Cache
 {
+    public enum CachePurgeStatergy
+    {
+        MRU,
+        LRU
+    }
     /// <summary>
     /// Dictionary with capability to retain n most recently used items in it. Where n is the capacity passed as argument to constructor.
     /// Item that get affected by following operations are marked Most Recently used 
@@ -17,23 +21,23 @@ namespace Cache
     /// <typeparam name="TValue"></typeparam>
     public class CacheDictionary<TKey, TValue> : IDictionary<TKey, TValue>
     {
+
         #region private members
         private readonly Dictionary<TKey, Node<CacheData<TKey, TValue>>> _dictionary = new Dictionary<TKey, Node<CacheData<TKey, TValue>>>();
         private readonly int _capacity = 32;
-        private readonly DoublyLinkedList<CacheData<TKey, TValue>> _list = new DoublyLinkedList<CacheData<TKey, TValue>>();
+        private readonly CacheItemLifeTimeManager<TKey, TValue> _cacheManager; 
 
         private void AddInternal(TKey key, TValue value)
         {
             if (_dictionary.Count >= _capacity)
             {
-                _dictionary.Remove(_list.Tail.Data.Key);
-                _list.RemoveLast();
+                _dictionary.Remove(_cacheManager.Purge());
             }
 
             var node = new Node<CacheData<TKey, TValue>>(new CacheData<TKey, TValue>(key, value));
 
             _dictionary.Add(key, node);
-            _list.AddFront(node);
+            _cacheManager.Add(node);
 
         }
         #endregion
@@ -43,6 +47,20 @@ namespace Cache
         {
             if (capacity < 0) throw new ArgumentOutOfRangeException("capacity","cannot be negative");
             _capacity = capacity;
+
+            _cacheManager = CacheItemLifeTimeManager<TKey, TValue>.Create(CachePurgeStatergy.LRU);
+
+            if (_cacheManager == null) throw  new InvalidOperationException("Invalid CacheManager");
+        }
+
+        public CacheDictionary(int capacity, CachePurgeStatergy statergy)
+        {
+            if (capacity < 0) throw new ArgumentOutOfRangeException("capacity", "cannot be negative");
+            _capacity = capacity;
+
+            _cacheManager = CacheItemLifeTimeManager<TKey, TValue>.Create(statergy);
+
+            if (_cacheManager == null) throw new InvalidOperationException("Invalid CacheManager");
         }
 
         public int CacheCapacity { get { return _capacity; } }
@@ -60,7 +78,7 @@ namespace Cache
             Node<CacheData<TKey, TValue>> node = null;
             if (_dictionary.TryGetValue(key, out node))
             {
-                _list.Remove(node);
+                _cacheManager.Remove(node);
                 return _dictionary.Remove(key);
             }
             return false;
@@ -76,7 +94,7 @@ namespace Cache
             Node<CacheData<TKey, TValue>> node = null;
             if (_dictionary.TryGetValue(key, out node))
             {
-                _list.MoveToFront(node);
+                _cacheManager.Mark(node);
                 value = node.Data.Value;
                 return true;
             }
@@ -89,7 +107,7 @@ namespace Cache
             get
             {
                 var node = _dictionary[key];
-                _list.MoveToFront(node);
+                _cacheManager.Mark(node);
                 return node.Data.Value;
             }
             set
@@ -98,7 +116,7 @@ namespace Cache
                 if (_dictionary.TryGetValue(key, out node))
                 {
                     node.Data.Value = value;
-                    _list.MoveToFront(node);
+                    _cacheManager.Mark(node);
                 }
                 else
                 {
@@ -109,12 +127,12 @@ namespace Cache
 
         public ICollection<TKey> Keys
         {
-            get { return _list.Select(data => data.Key).ToList(); }
+            get { return _cacheManager.Keys; }
         }
 
         public ICollection<TValue> Values
         {
-            get { return _list.Select(data => data.Value).ToList(); }
+            get { return _cacheManager.Values; }
         }
 
         #endregion
@@ -122,7 +140,7 @@ namespace Cache
         #region IEnumerator<KeyValuePair<TKey, TValue>> implementation
         public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
         {
-            return _list.Select(item => new KeyValuePair<TKey, TValue>(item.Key,item.Value)).GetEnumerator();
+            return _cacheManager.GetEnumerator();
         }
 
         #endregion
@@ -147,7 +165,7 @@ namespace Cache
             {
                 if (node.Data.Equals(new CacheData<TKey,TValue>(item.Key,item.Value)))
                 {
-                    _list.Remove(node);
+                    _cacheManager.Remove(node);
                     return _dictionary.Remove(item.Key);
                 }
             }
@@ -157,7 +175,7 @@ namespace Cache
         public void Clear()
         {
             _dictionary.Clear();
-            _list.Clear();
+            _cacheManager.Clear();
         }
 
         public bool Contains(KeyValuePair<TKey, TValue> item)

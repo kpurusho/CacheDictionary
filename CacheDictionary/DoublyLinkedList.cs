@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 
 namespace Cache
@@ -13,14 +14,6 @@ namespace Cache
 
         public Node<T> Tail { get { return _tail; } }
 
-        public void RemoveLast()
-        {
-            _tail = _tail.Previous;
-            if (_tail != null)
-                _tail.Next = null;
-
-            _count--;
-        }
 
         public IEnumerator<T> GetEnumerator()
         {
@@ -111,6 +104,49 @@ namespace Cache
         IEnumerator IEnumerable.GetEnumerator()
         {
             return GetEnumerator();
+        }
+
+        public Node<T> RemoveFirst()
+        {
+            var retVal = _head;
+
+            if (_head == null) throw new Exception("List is empty");
+
+            _head = _head.Next;
+            if (_head != null)
+            {
+                _head.Previous = null;
+            }
+            else
+            {
+                _tail = null;
+            }
+
+            _count--;
+
+            return retVal;
+        }
+
+
+        public Node<T> RemoveLast()
+        {
+            var retVal = _tail;
+
+            if (_tail == null) throw new Exception("List is empty");
+
+            _tail = _tail.Previous;
+            if (_tail != null)
+            {
+                _tail.Next = null;
+            }
+            else
+            {
+                _head = null;
+            }
+
+            _count--;
+
+            return retVal;
         }
     }
 }

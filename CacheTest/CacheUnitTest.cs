@@ -10,7 +10,7 @@ namespace CacheTest
     [TestClass]
     public class CacheUnitTest
     {
-        private readonly CacheDictionary<int,int> _cache = new CacheDictionary<int,int>(5);
+        private CacheDictionary<int,int> _cache = new CacheDictionary<int,int>(5);
 
         private void FillCache()
         {
@@ -51,7 +51,18 @@ namespace CacheTest
             Assert.IsTrue(_cache.ContainsKey(5));
             Assert.AreEqual(_cache.CacheCapacity, _cache.Count);
         }
-        
+
+        [TestMethod]
+        public void Add_CacheCapacityReached_MRUKVPRemovedAndNewKVPAdded()
+        {
+            _cache = new CacheDictionary<int, int>(5,CachePurgeStatergy.MRU);
+            FillCache();
+            _cache.Add(5, 5);
+            Assert.IsFalse(_cache.ContainsKey(4));
+            Assert.IsTrue(_cache.ContainsKey(5));
+            Assert.AreEqual(_cache.CacheCapacity, _cache.Count);
+        }
+
         [TestMethod]
         public void AddKVP_KeyNotPresent_KVPAdded()
         {
@@ -78,6 +89,18 @@ namespace CacheTest
             Assert.IsTrue(_cache.ContainsKey(5));
             Assert.AreEqual(_cache.CacheCapacity, _cache.Count);
         }
+
+        [TestMethod]
+        public void AddKVP_CacheCapacityReached_MRUKVPRemovedAndNewKVPAdded()
+        {
+            _cache = new CacheDictionary<int, int>(5, CachePurgeStatergy.MRU);
+            FillCache();
+            _cache.Add(new KeyValuePair<int, int>(5, 5));
+            Assert.IsFalse(_cache.ContainsKey(4));
+            Assert.IsTrue(_cache.ContainsKey(5));
+            Assert.AreEqual(_cache.CacheCapacity, _cache.Count);
+        }
+
 
         [TestMethod]
         public void Remove_KeyPresent_KeyRemovedAndRemoveReturnsTrue()
@@ -178,7 +201,7 @@ namespace CacheTest
         }
 
         [TestMethod]
-        public void TryGetValue_KeyPresent_KeyMarkedAsMRU()
+        public void TryGetValue_LRUDicAndKeyPresent_KeyMarkedLastForPurge()
         {
             FillCache();
             int value;
@@ -189,6 +212,20 @@ namespace CacheTest
             Assert.IsTrue(_cache.ContainsKey(5));   //newly added key 5 is present
             Assert.IsTrue(_cache.ContainsKey(0));   //0 is present
             Assert.IsFalse(_cache.ContainsKey(1));  //next LRU key is removed when 5 is added
+        }
+
+        [TestMethod]
+        public void TryGetValue_MRUDicAndKeyPresent_KeyMarkedLastForPurge()
+        {
+            _cache = new CacheDictionary<int, int>(5, CachePurgeStatergy.MRU);
+            FillCache();
+            int value;
+            Assert.IsTrue(_cache.TryGetValue(0, out value));    //0 moved to top of MRU list
+            Assert.AreEqual(0, value);
+
+            _cache.Add(5, 5);
+            Assert.IsTrue(_cache.ContainsKey(5));   //newly added key 5 is present
+            Assert.IsFalse(_cache.ContainsKey(0));   //0 is not present
         }
 
         [TestMethod]
@@ -207,7 +244,7 @@ namespace CacheTest
         }
 
         [TestMethod]
-        public void IndexerSet_KeyPresent_ValueUpdatedAndMarkedAsMRU()
+        public void IndexerSet_LRUDicAndKeyPresent_ValueUpdatedAndMarkedLastForPurge()
         {
             FillCache();
             _cache[0] = 100;
@@ -220,7 +257,21 @@ namespace CacheTest
         }
 
         [TestMethod]
-        public void IndexerSet_KeyNotPresent_KVPAddedAndMarkedAsMRU()
+        public void IndexerSet_MRUDicAndKeyPresent_ValueUpdatedAndMarkedForPurge()
+        {
+            _cache = new CacheDictionary<int, int>(5, CachePurgeStatergy.MRU);
+            FillCache();
+            _cache[0] = 100;
+            Assert.AreEqual(100, _cache[0]);
+
+            _cache.Add(5, 5);
+            Assert.IsTrue(_cache.ContainsKey(5));   //newly added key 5 is present
+            Assert.IsFalse(_cache.ContainsKey(0));   //0 is not present
+        }
+
+
+        [TestMethod]
+        public void IndexerSet_LRUDicAndKeyNotPresent_KVPAddedAndMarkedLastForPurge()
         {
             FillCache();
             _cache[5] = 5;
@@ -228,6 +279,20 @@ namespace CacheTest
 
             Assert.IsTrue(_cache.ContainsKey(5));   //newly added key 5 is present
             Assert.IsFalse(_cache.ContainsKey(0));   //0 is not present
+        }
+
+        [TestMethod]
+        public void IndexerSet_MRUDicAndKeyNotPresent_KVPAddedAndMarkedForPurge()
+        {
+            _cache = new CacheDictionary<int, int>(5,CachePurgeStatergy.MRU);
+            FillCache();
+            _cache[5] = 5;
+            Assert.AreEqual(5, _cache[5]);
+
+            Assert.IsTrue(_cache.ContainsKey(5));   //newly added key 5 is present
+            Assert.IsFalse(_cache.ContainsKey(4));   //0 is not present
+            _cache.Add(6,6);
+            Assert.IsFalse(_cache.ContainsKey(5));   //key 5 is not present
         }
 
         [TestMethod]

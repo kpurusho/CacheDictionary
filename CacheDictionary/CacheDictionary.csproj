@@ -48,6 +48,9 @@
   <ItemGroup>
     <Compile Include="CacheData.cs" />
     <Compile Include="CacheDictionary.cs" />
+    <Compile Include="CacheItemLifeTimeManager.cs" />
+    <Compile Include="CacheItemLifeTimeManagerLRU.cs" />
+    <Compile Include="CacheItemLifeTimeManagerMRU.cs" />
     <Compile Include="DoublyLinkedList.cs" />
     <Compile Include="Node.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
