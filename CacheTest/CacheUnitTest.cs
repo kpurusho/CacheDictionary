@@ -7,6 +7,9 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace CacheTest
 {
+    /// <summary>
+    /// Pull up a Base Test class with all utils thrown in there
+    /// </summary>
     [TestClass]
     public class CacheUnitTest
     {
