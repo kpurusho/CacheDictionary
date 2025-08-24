@@ -331,5 +331,459 @@ namespace CacheTest
                 Assert.AreEqual(kvp--,kv.Value);
             }
         }
+
+        #region Constructor Tests
+
+        [TestMethod]
+        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        public void Constructor_NegativeCapacity_ArgumentOutOfRangeExceptionThrown()
+        {
+            var cache = new CacheDictionary<int, int>(-1);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(ArgumentOutOfRangeException))]  
+        public void Constructor_NegativeCapacityWithStrategy_ArgumentOutOfRangeExceptionThrown()
+        {
+            var cache = new CacheDictionary<int, int>(-1, CachePurgeStatergy.LRU);
+        }
+
+        [TestMethod]
+        public void Constructor_ZeroCapacity_CacheCreated()
+        {
+            var cache = new CacheDictionary<int, int>(0);
+            Assert.AreEqual(0, cache.CacheCapacity);
+            Assert.AreEqual(0, cache.Count);
+        }
+
+        [TestMethod]
+        public void Constructor_DefaultStrategy_LRUStrategyUsed()
+        {
+            var cache = new CacheDictionary<int, int>(2);
+            cache.Add(1, 1);
+            cache.Add(2, 2);
+            cache.Add(3, 3); // Should remove key 1 (LRU)
+            
+            Assert.IsFalse(cache.ContainsKey(1));
+            Assert.IsTrue(cache.ContainsKey(2));
+            Assert.IsTrue(cache.ContainsKey(3));
+        }
+
+        [TestMethod]
+        public void Constructor_ExplicitLRUStrategy_LRUStrategyUsed()
+        {
+            var cache = new CacheDictionary<int, int>(2, CachePurgeStatergy.LRU);
+            cache.Add(1, 1);
+            cache.Add(2, 2);
+            cache.Add(3, 3); // Should remove key 1 (LRU)
+            
+            Assert.IsFalse(cache.ContainsKey(1));
+            Assert.IsTrue(cache.ContainsKey(2));
+            Assert.IsTrue(cache.ContainsKey(3));
+        }
+
+        [TestMethod]
+        public void Constructor_ExplicitMRUStrategy_MRUStrategyUsed()
+        {
+            var cache = new CacheDictionary<int, int>(2, CachePurgeStatergy.MRU);
+            cache.Add(1, 1);
+            cache.Add(2, 2);
+            cache.Add(3, 3); // Should remove key 2 (MRU)
+            
+            Assert.IsTrue(cache.ContainsKey(1));
+            Assert.IsFalse(cache.ContainsKey(2));
+            Assert.IsTrue(cache.ContainsKey(3));
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(InvalidOperationException))]
+        public void Constructor_InvalidStrategy_InvalidOperationExceptionThrown()
+        {
+            // Use an invalid enum value by casting
+            var invalidStrategy = (CachePurgeStatergy)999;
+            var cache = new CacheDictionary<int, int>(5, invalidStrategy);
+        }
+
+        #endregion
+
+        #region Edge Case Tests
+
+        [TestMethod]
+        public void ZeroCapacityCache_AddItem_ItemNotAdded()
+        {
+            var cache = new CacheDictionary<int, int>(0);
+            cache.Add(1, 1);
+            Assert.AreEqual(0, cache.Count);
+            Assert.IsFalse(cache.ContainsKey(1));
+        }
+
+        [TestMethod]
+        public void SingleCapacityCache_AddTwoItems_FirstItemRemoved()
+        {
+            var cache = new CacheDictionary<int, int>(1);
+            cache.Add(1, 1);
+            Assert.AreEqual(1, cache.Count);
+            Assert.IsTrue(cache.ContainsKey(1));
+            
+            cache.Add(2, 2);
+            Assert.AreEqual(1, cache.Count);
+            Assert.IsFalse(cache.ContainsKey(1));
+            Assert.IsTrue(cache.ContainsKey(2));
+        }
+
+        [TestMethod]
+        public void EmptyCache_RemoveNonExistentKey_ReturnsFalse()
+        {
+            Assert.IsFalse(_cache.Remove(999));
+            Assert.AreEqual(0, _cache.Count);
+        }
+
+        [TestMethod]
+        public void EmptyCache_ContainsKey_ReturnsFalse()
+        {
+            Assert.IsFalse(_cache.ContainsKey(999));
+        }
+
+        [TestMethod]
+        public void EmptyCache_TryGetValue_ReturnsFalseAndDefaultValue()
+        {
+            int value;
+            bool result = _cache.TryGetValue(999, out value);
+            Assert.IsFalse(result);
+            Assert.AreEqual(default(int), value);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(KeyNotFoundException))]
+        public void EmptyCache_IndexerGet_KeyNotFoundExceptionThrown()
+        {
+            var value = _cache[999];
+        }
+
+        [TestMethod]
+        public void EmptyCache_IndexerSet_ItemAdded()
+        {
+            _cache[1] = 100;
+            Assert.AreEqual(1, _cache.Count);
+            Assert.AreEqual(100, _cache[1]);
+        }
+
+        [TestMethod]
+        public void EmptyCache_Keys_EmptyCollection()
+        {
+            Assert.AreEqual(0, _cache.Keys.Count);
+        }
+
+        [TestMethod]
+        public void EmptyCache_Values_EmptyCollection()
+        {
+            Assert.AreEqual(0, _cache.Values.Count);
+        }
+
+        [TestMethod]
+        public void EmptyCache_GetEnumerator_NoItems()
+        {
+            int count = 0;
+            foreach (var kvp in _cache)
+            {
+                count++;
+            }
+            Assert.AreEqual(0, count);
+        }
+
+        #endregion
+
+        #region ICollection Interface Tests
+
+        [TestMethod]
+        [ExpectedException(typeof(NotImplementedException))]
+        public void CopyTo_Always_NotImplementedExceptionThrown()
+        {
+            FillCache();
+            var array = new KeyValuePair<int, int>[10];
+            _cache.CopyTo(array, 0);
+        }
+
+        [TestMethod]
+        public void Count_EmptyCache_ReturnsZero()
+        {
+            Assert.AreEqual(0, _cache.Count);
+        }
+
+        [TestMethod]
+        public void Count_AfterAddingItems_ReturnsCorrectCount()
+        {
+            _cache.Add(1, 1);
+            Assert.AreEqual(1, _cache.Count);
+            
+            _cache.Add(2, 2);
+            Assert.AreEqual(2, _cache.Count);
+        }
+
+        [TestMethod]
+        public void Count_AfterClear_ReturnsZero()
+        {
+            FillCache();
+            Assert.AreEqual(5, _cache.Count);
+            
+            _cache.Clear();
+            Assert.AreEqual(0, _cache.Count);
+        }
+
+        [TestMethod]
+        public void Count_AfterRemove_ReturnsCorrectCount()
+        {
+            FillCache();
+            Assert.AreEqual(5, _cache.Count);
+            
+            _cache.Remove(0);
+            Assert.AreEqual(4, _cache.Count);
+        }
+
+        [TestMethod]
+        public void IsReadOnly_Always_ReturnsFalse()
+        {
+            Assert.IsFalse(_cache.IsReadOnly);
+        }
+
+        #endregion
+
+        #region Different Data Types Tests
+
+        [TestMethod]
+        public void StringKeys_AddAndRetrieve_WorksCorrectly()
+        {
+            var stringCache = new CacheDictionary<string, int>(3);
+            stringCache.Add("one", 1);
+            stringCache.Add("two", 2);
+            stringCache.Add("three", 3);
+            
+            Assert.AreEqual(1, stringCache["one"]);
+            Assert.AreEqual(2, stringCache["two"]);  
+            Assert.AreEqual(3, stringCache["three"]);
+            Assert.AreEqual(3, stringCache.Count);
+        }
+
+        [TestMethod]
+        public void StringKeysLRU_CapacityExceeded_OldestKeyRemoved()
+        {
+            var stringCache = new CacheDictionary<string, int>(2);
+            stringCache.Add("first", 1);
+            stringCache.Add("second", 2);
+            stringCache.Add("third", 3); // Should remove "first"
+            
+            Assert.IsFalse(stringCache.ContainsKey("first"));
+            Assert.IsTrue(stringCache.ContainsKey("second"));
+            Assert.IsTrue(stringCache.ContainsKey("third"));
+        }
+
+        [TestMethod]
+        public void ObjectValues_AddAndRetrieve_WorksCorrectly()
+        {
+            var objectCache = new CacheDictionary<int, object>(3);
+            objectCache.Add(1, "string value");
+            objectCache.Add(2, 42);
+            objectCache.Add(3, new object());
+            
+            Assert.AreEqual("string value", objectCache[1]);
+            Assert.AreEqual(42, objectCache[2]);
+            Assert.IsNotNull(objectCache[3]);
+            Assert.AreEqual(3, objectCache.Count);
+        }
+
+        #endregion
+
+        #region Null Value Tests
+
+        [TestMethod]
+        public void NullValues_AddAndRetrieve_WorksCorrectly()
+        {
+            var nullableCache = new CacheDictionary<int, string>(3);
+            nullableCache.Add(1, null);
+            nullableCache.Add(2, "not null");
+            nullableCache.Add(3, null);
+            
+            Assert.IsNull(nullableCache[1]);
+            Assert.AreEqual("not null", nullableCache[2]);
+            Assert.IsNull(nullableCache[3]);
+            Assert.AreEqual(3, nullableCache.Count);
+        }
+
+        [TestMethod]
+        public void NullValues_TryGetValue_ReturnsCorrectly()
+        {
+            var nullableCache = new CacheDictionary<int, string>(2);
+            nullableCache.Add(1, null);
+            
+            string value;
+            bool result = nullableCache.TryGetValue(1, out value);
+            Assert.IsTrue(result);
+            Assert.IsNull(value);
+        }
+
+        [TestMethod]
+        public void NullValues_Contains_WorksCorrectly()
+        {
+            var nullableCache = new CacheDictionary<int, string>(2);
+            nullableCache.Add(1, null);
+            
+            Assert.IsTrue(nullableCache.Contains(new KeyValuePair<int, string>(1, null)));
+            Assert.IsFalse(nullableCache.Contains(new KeyValuePair<int, string>(1, "not null")));
+        }
+
+        [TestMethod]
+        public void NullValues_IndexerSet_WorksCorrectly()
+        {
+            var nullableCache = new CacheDictionary<int, string>(2);
+            nullableCache[1] = null;
+            
+            Assert.IsNull(nullableCache[1]);
+            Assert.AreEqual(1, nullableCache.Count);
+        }
+
+        #endregion
+
+        #region Advanced Purging Behavior Tests
+
+        [TestMethod]
+        public void LRUCache_AccessPattern_CorrectPurgingOrder()
+        {
+            var cache = new CacheDictionary<int, int>(3, CachePurgeStatergy.LRU);
+            cache.Add(1, 1); // 1 (MRU)
+            cache.Add(2, 2); // 2 (MRU), 1 (LRU)
+            cache.Add(3, 3); // 3 (MRU), 2, 1 (LRU)
+            
+            // Access 1, making it MRU: 1 (MRU), 3, 2 (LRU) 
+            var value = cache[1];
+            
+            // Add 4, should remove 2 (LRU)
+            cache.Add(4, 4);
+            
+            Assert.IsTrue(cache.ContainsKey(1));
+            Assert.IsFalse(cache.ContainsKey(2)); // Should be removed
+            Assert.IsTrue(cache.ContainsKey(3));
+            Assert.IsTrue(cache.ContainsKey(4));
+        }
+
+        [TestMethod]
+        public void MRUCache_AccessPattern_CorrectPurgingOrder()
+        {
+            var cache = new CacheDictionary<int, int>(3, CachePurgeStatergy.MRU);
+            cache.Add(1, 1); // 1 (MRU)
+            cache.Add(2, 2); // 2 (MRU), 1 (LRU)
+            cache.Add(3, 3); // 3 (MRU), 2, 1 (LRU)
+            
+            // Access 1, making it MRU: 1 (MRU), 3, 2 (LRU)
+            var value = cache[1];
+            
+            // Add 4, should remove 1 (MRU)
+            cache.Add(4, 4);
+            
+            Assert.IsFalse(cache.ContainsKey(1)); // Should be removed (was MRU)
+            Assert.IsTrue(cache.ContainsKey(2));
+            Assert.IsTrue(cache.ContainsKey(3));
+            Assert.IsTrue(cache.ContainsKey(4));
+        }
+
+        [TestMethod]
+        public void LRUCache_TryGetValueUpdatesPurgeOrder()
+        {
+            var cache = new CacheDictionary<int, int>(2, CachePurgeStatergy.LRU);
+            cache.Add(1, 1); // 1 (MRU)
+            cache.Add(2, 2); // 2 (MRU), 1 (LRU)
+            
+            int value;
+            cache.TryGetValue(1, out value); // 1 (MRU), 2 (LRU)
+            
+            cache.Add(3, 3); // Should remove 2 (LRU)
+            
+            Assert.IsTrue(cache.ContainsKey(1));
+            Assert.IsFalse(cache.ContainsKey(2)); // Should be removed
+            Assert.IsTrue(cache.ContainsKey(3));
+        }
+
+        [TestMethod]
+        public void MRUCache_TryGetValueUpdatesPurgeOrder()
+        {
+            var cache = new CacheDictionary<int, int>(2, CachePurgeStatergy.MRU);
+            cache.Add(1, 1); // 1 (MRU)
+            cache.Add(2, 2); // 2 (MRU), 1 (LRU)
+            
+            int value;
+            cache.TryGetValue(1, out value); // 1 (MRU), 2 (LRU)
+            
+            cache.Add(3, 3); // Should remove 1 (MRU)
+            
+            Assert.IsFalse(cache.ContainsKey(1)); // Should be removed
+            Assert.IsTrue(cache.ContainsKey(2));
+            Assert.IsTrue(cache.ContainsKey(3));
+        }
+
+        #endregion
+
+        #region Internal Consistency Tests
+
+        [TestMethod]
+        public void CacheCapacity_AfterConstruction_MatchesPassedValue()
+        {
+            var cache1 = new CacheDictionary<int, int>(10);
+            Assert.AreEqual(10, cache1.CacheCapacity);
+            
+            var cache2 = new CacheDictionary<int, int>(1, CachePurgeStatergy.MRU);
+            Assert.AreEqual(1, cache2.CacheCapacity);
+        }
+
+        [TestMethod]
+        public void Count_NeverExceedsCapacity()
+        {
+            var cache = new CacheDictionary<int, int>(3);
+            
+            for (int i = 0; i < 10; i++)
+            {
+                cache.Add(i, i);
+                Assert.IsTrue(cache.Count <= cache.CacheCapacity);
+            }
+            
+            Assert.AreEqual(3, cache.Count);
+            Assert.AreEqual(3, cache.CacheCapacity);
+        }
+
+        [TestMethod]
+        public void KeysAndValuesCount_MatchesCacheCount()
+        {
+            FillCache();
+            Assert.AreEqual(_cache.Count, _cache.Keys.Count);
+            Assert.AreEqual(_cache.Count, _cache.Values.Count);
+            
+            _cache.Remove(0);
+            Assert.AreEqual(_cache.Count, _cache.Keys.Count);
+            Assert.AreEqual(_cache.Count, _cache.Values.Count);
+            
+            _cache.Clear();
+            Assert.AreEqual(_cache.Count, _cache.Keys.Count);
+            Assert.AreEqual(_cache.Count, _cache.Values.Count);
+        }
+
+        [TestMethod]
+        public void EnumeratorCount_MatchesCacheCount()
+        {
+            FillCache();
+            int enumeratedCount = 0;
+            foreach (var kvp in _cache)
+            {
+                enumeratedCount++;
+            }
+            Assert.AreEqual(_cache.Count, enumeratedCount);
+            
+            _cache.Remove(2);
+            enumeratedCount = 0;
+            foreach (var kvp in _cache)
+            {
+                enumeratedCount++;
+            }
+            Assert.AreEqual(_cache.Count, enumeratedCount);
+        }
+
+        #endregion
     }
 }
